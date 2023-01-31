@@ -17,12 +17,10 @@ class BiaffineAttention(torch.nn.Module):
         out_features (int): The size of the feature dimension of the output.
 
     Shape:
-        - x_1: `(N, *, in_features)` where `N` is the batch dimension and `*` means any number of
-          additional dimensisons.
-        - x_2: `(N, *, in_features)`, where `N` is the batch dimension and `*` means any number of
-          additional dimensions.
-        - Output: `(N, *, out_features)`, where `N` is the batch dimension and `*` means any number
-            of additional dimensions.
+        - x_1: `(batch_size, *, in_features)` where `*` means any number of additional dimensisons.
+        - x_2: `(batch_size, *, in_features)` where `*` means any number of additional dimensions.
+        - Output: `(batch_size, *, out_features)` where `*` means any number of additional dimensions.
+
 
     Examples:
         >>> batch_size, in_features, out_features = 32, 100, 4
