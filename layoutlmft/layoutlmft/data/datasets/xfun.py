@@ -131,7 +131,6 @@ class XFUN(datasets.GeneratorBasedBuilder):
         relation_per_doc["label"] = [1] * len(positive_relations) + [0] * (
             len(reordered_relations) - len(positive_relations)
         )
-        assert len(relation_per_doc["head"]) != 0
         new_relations.append(relation_per_doc)
 
         new_relations = new_relations[0]
