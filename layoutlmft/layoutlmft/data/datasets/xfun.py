@@ -48,7 +48,7 @@ class XFUN(datasets.GeneratorBasedBuilder):
                             names=["O", "B-QUESTION", "B-ANSWER", "B-HEADER", "I-ANSWER", "I-QUESTION", "I-HEADER"]
                         )
                     ),
-                    "image": datasets.Array3D(shape=(3, 224, 224), dtype="uint8"),
+                    "image": datasets.Array3D(shape=(3, 1000, 1000), dtype="uint8"),
                     "entities": datasets.Sequence(
                         {
                             "start": datasets.Value("int64"),
