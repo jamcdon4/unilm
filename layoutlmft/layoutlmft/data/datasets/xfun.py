@@ -48,7 +48,7 @@ class XFUN(datasets.GeneratorBasedBuilder):
                             names=["O", "B-QUESTION", "B-ANSWER", "B-HEADER", "I-ANSWER", "I-QUESTION", "I-HEADER"]
                         )
                     ),
-                    "image": datasets.Array3D(shape=(3, 224, 224), dtype="uint8"),
+                    "image": datasets.Array3D(shape=(3, 1000, 1000), dtype="uint8"),
                     "entities": datasets.Sequence(
                         {
                             "start": datasets.Value("int64"),
@@ -60,8 +60,7 @@ class XFUN(datasets.GeneratorBasedBuilder):
                         {
                             "head": datasets.Value("int64"),
                             "tail": datasets.Value("int64"),
-                            "start_index": datasets.Value("int64"),
-                            "end_index": datasets.Value("int64"),
+                            "label": datasets.Value("int64"),
                         }
                     ),
                 }
@@ -99,6 +98,46 @@ class XFUN(datasets.GeneratorBasedBuilder):
             ),
             # datasets.SplitGenerator(name=datasets.Split.TEST, gen_kwargs={"filepaths": test_files_for_many_langs}),
         ]
+
+    def build_relation(self, relations, entities):
+
+        entities = {key: [i[key] for i in entities] for key in entities[0]}
+        if len(entities["start"]) <= 2:
+            entities = {"end": [1, 1], "label": ['HEADER', 'HEADER'], "start": [0, 0]}
+        
+        new_relations = []
+        if len(relations) > 0:
+            relations = {key: [i[key] for i in relations] for key in relations[0]}  
+        else:
+            relations = {"head":[],"tail":[]}
+
+        all_possible_relations = set(
+            [
+                (i, j)
+                for i in range(len(entities["label"]))
+                for j in range(len(entities["label"]))
+                if entities["label"][i] == 'QUESTION' and entities["label"][j] == 'ANSWER'
+            ]
+        )
+        if len(all_possible_relations) == 0:
+            all_possible_relations = set([(0, 1)])
+        positive_relations = set(list(zip(relations["head"], relations["tail"])))
+        negative_relations = all_possible_relations - positive_relations
+        positive_relations = set([i for i in positive_relations if i in all_possible_relations])
+        reordered_relations = list(positive_relations) + list(negative_relations)
+        relation_per_doc = {"head": [], "tail": [], "label": []}
+        relation_per_doc["head"] = [i[0] for i in reordered_relations]
+        relation_per_doc["tail"] = [i[1] for i in reordered_relations]
+        relation_per_doc["label"] = [1] * len(positive_relations) + [0] * (
+            len(reordered_relations) - len(positive_relations)
+        )
+        new_relations.append(relation_per_doc)
+
+        new_relations = new_relations[0]
+        built_relation = [{key: new_relations[key][i] for key in new_relations} for i in range(len(new_relations['label']))]
+        built_entities = [{key: entities[key][i] for key in entities} for i in range(len(entities['start']))]
+        
+        return built_relation, built_entities
 
     def _generate_examples(self, filepaths):
         for filepath in filepaths:
@@ -234,12 +273,13 @@ class XFUN(datasets.GeneratorBasedBuilder):
                                     "end_index": relation["end_index"] - index,
                                 }
                             )
+                    built_relations, built_entities = self.build_relation(relations_in_this_span, entities_in_this_span)
                     item.update(
                         {
                             "id": f"{doc['id']}_{chunk_id}",
                             "image": image,
-                            "entities": entities_in_this_span,
-                            "relations": relations_in_this_span,
+                            "entities": built_entities,
+                            "relations": built_relations,
                         }
                     )
                     yield f"{doc['id']}_{chunk_id}", item

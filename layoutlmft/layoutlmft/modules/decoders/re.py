@@ -17,12 +17,10 @@ class BiaffineAttention(torch.nn.Module):
         out_features (int): The size of the feature dimension of the output.
 
     Shape:
-        - x_1: `(N, *, in_features)` where `N` is the batch dimension and `*` means any number of
-          additional dimensisons.
-        - x_2: `(N, *, in_features)`, where `N` is the batch dimension and `*` means any number of
-          additional dimensions.
-        - Output: `(N, *, out_features)`, where `N` is the batch dimension and `*` means any number
-            of additional dimensions.
+        - x_1: `(batch_size, *, in_features)` where `*` means any number of additional dimensisons.
+        - x_2: `(batch_size, *, in_features)` where `*` means any number of additional dimensions.
+        - Output: `(batch_size, *, out_features)` where `*` means any number of additional dimensions.
+
 
     Examples:
         >>> batch_size, in_features, out_features = 32, 100, 4
@@ -70,36 +68,6 @@ class REDecoder(nn.Module):
         self.rel_classifier = BiaffineAttention(config.hidden_size // 2, 2)
         self.loss_fct = CrossEntropyLoss()
 
-    def build_relation(self, relations, entities):
-        batch_size = len(relations)
-        new_relations = []
-        for b in range(batch_size):
-            if len(entities[b]["start"]) <= 2:
-                entities[b] = {"end": [1, 1], "label": [0, 0], "start": [0, 0]}
-            all_possible_relations = set(
-                [
-                    (i, j)
-                    for i in range(len(entities[b]["label"]))
-                    for j in range(len(entities[b]["label"]))
-                    if entities[b]["label"][i] == 1 and entities[b]["label"][j] == 2
-                ]
-            )
-            if len(all_possible_relations) == 0:
-                all_possible_relations = set([(0, 1)])
-            positive_relations = set(list(zip(relations[b]["head"], relations[b]["tail"])))
-            negative_relations = all_possible_relations - positive_relations
-            positive_relations = set([i for i in positive_relations if i in all_possible_relations])
-            reordered_relations = list(positive_relations) + list(negative_relations)
-            relation_per_doc = {"head": [], "tail": [], "label": []}
-            relation_per_doc["head"] = [i[0] for i in reordered_relations]
-            relation_per_doc["tail"] = [i[1] for i in reordered_relations]
-            relation_per_doc["label"] = [1] * len(positive_relations) + [0] * (
-                len(reordered_relations) - len(positive_relations)
-            )
-            assert len(relation_per_doc["head"]) != 0
-            new_relations.append(relation_per_doc)
-        return new_relations, entities
-
     def get_predicted_relations(self, logits, relations, entities):
         pred_relations = []
         for i, pred_label in enumerate(logits.argmax(-1)):
@@ -120,7 +88,6 @@ class REDecoder(nn.Module):
     def forward(self, hidden_states, entities, relations):
         batch_size, max_n_words, context_dim = hidden_states.size()
         device = hidden_states.device
-        relations, entities = self.build_relation(relations, entities)
         loss = 0
         all_pred_relations = []
         for b in range(batch_size):
