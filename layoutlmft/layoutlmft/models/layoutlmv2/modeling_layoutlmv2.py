@@ -910,8 +910,12 @@ class LayoutLMv2ForRelationExtraction(LayoutLMv2PreTrainedModel):
         token_type_ids=None,
         position_ids=None,
         head_mask=None,
-        entities=None,
-        relations=None,
+        relation_head=None,
+        relation_tail=None,
+        relation_label=None,
+        entities_start=None,
+        entities_end=None,
+        entities_label=None,
     ):
         outputs = self.layoutlmv2(
             input_ids=input_ids,
@@ -926,12 +930,24 @@ class LayoutLMv2ForRelationExtraction(LayoutLMv2PreTrainedModel):
         seq_length = input_ids.size(1)
         sequence_output, image_output = outputs[0][:, :seq_length], outputs[0][:, seq_length:]
         sequence_output = self.dropout(sequence_output)
-        loss, pred_relations = self.extractor(sequence_output, entities, relations)
+        loss, pred_relations = self.extractor(
+            sequence_output,
+            relation_head,
+            relation_tail,
+            relation_label,
+            entities_start,
+            entities_end,
+            entities_label
+        )
 
         return ReOutput(
             loss=loss,
-            entities=entities,
-            relations=relations,
+            relation_head=relation_head,
+            relation_tail=relation_tail,
+            relation_label=relation_label,
+            entities_start=entities_start,
+            entities_end=entities_end,
+            entities_label=entities_end,
             pred_relations=pred_relations,
-            hidden_states=outputs[0],
+            hidden_states=outputs[0]
         )

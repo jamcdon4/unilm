@@ -68,54 +68,85 @@ class REDecoder(nn.Module):
         self.rel_classifier = BiaffineAttention(config.hidden_size // 2, 2)
         self.loss_fct = CrossEntropyLoss()
 
-    def get_predicted_relations(self, logits, relations, entities):
+    def get_predicted_relations(self, 
+                                logits, 
+                                relation_head_doc,
+                                relation_tail_doc,
+                                relation_label_doc,
+                                entities_start_doc,
+                                entities_label_doc,
+                                entities_end_doc
+        ):
+
         pred_relations = []
         for i, pred_label in enumerate(logits.argmax(-1)):
             if pred_label != 1:
                 continue
             rel = {}
-            rel["head_id"] = relations["head"][i]
-            rel["head"] = (entities["start"][rel["head_id"]], entities["end"][rel["head_id"]])
-            rel["head_type"] = entities["label"][rel["head_id"]]
+            rel["head_id"] = relation_head_doc[i]
+            rel["head"] = (entities_start_doc[rel["head_id"]], entities_end_doc[rel["head_id"]])
+            rel["head_type"] = entities_label_doc[rel["head_id"]]
 
-            rel["tail_id"] = relations["tail"][i]
-            rel["tail"] = (entities["start"][rel["tail_id"]], entities["end"][rel["tail_id"]])
-            rel["tail_type"] = entities["label"][rel["tail_id"]]
+            rel["tail_id"] = relation_tail_doc[i]
+            rel["tail"] = (entities_start_doc[rel["tail_id"]], entities_end_doc[rel["tail_id"]])
+            rel["tail_type"] = entities_label_doc[rel["tail_id"]]
             rel["type"] = 1
             pred_relations.append(rel)
         return pred_relations
 
-    def forward(self, hidden_states, entities, relations):
+    def forward(self, 
+                hidden_states, 
+                relation_head,
+                relation_tail,
+                relation_label,
+                entities_start,
+                entities_end,
+                entities_label
+        ):
+        
         batch_size, max_n_words, context_dim = hidden_states.size()
-        device = hidden_states.device
         loss = 0
         all_pred_relations = []
-        for b in range(batch_size):
-            head_entities = torch.tensor(relations[b]["head"], device=device)
-            tail_entities = torch.tensor(relations[b]["tail"], device=device)
-            relation_labels = torch.tensor(relations[b]["label"], device=device)
-            entities_start_index = torch.tensor(entities[b]["start"], device=device)
-            entities_labels = torch.tensor(entities[b]["label"], device=device)
-            head_index = entities_start_index[head_entities]
-            head_label = entities_labels[head_entities]
+        
+        for doc in range(batch_size):
+            
+            relation_head_doc  = relation_head[doc] 
+            relation_tail_doc  = relation_tail[doc]
+            relation_label_doc = relation_label[doc]
+            entities_start_doc = entities_start[doc]
+            entities_label_doc = entities_label[doc]
+            entities_end_doc = entities_end[doc]
+
+            head_index = entities_start_doc[relation_head_doc]
+            head_label = entities_label_doc[relation_head_doc]
             head_label_repr = self.entity_emb(head_label)
 
-            tail_index = entities_start_index[tail_entities]
-            tail_label = entities_labels[tail_entities]
+            tail_index = entities_start_doc[relation_tail_doc]
+            tail_label = entities_label_doc[relation_tail_doc]
             tail_label_repr = self.entity_emb(tail_label)
 
             head_repr = torch.cat(
-                (hidden_states[b][head_index], head_label_repr),
+                (hidden_states[doc][head_index], head_label_repr),
                 dim=-1,
             )
             tail_repr = torch.cat(
-                (hidden_states[b][tail_index], tail_label_repr),
+                (hidden_states[doc][tail_index], tail_label_repr),
                 dim=-1,
             )
             heads = self.ffnn_head(head_repr)
             tails = self.ffnn_tail(tail_repr)
             logits = self.rel_classifier(heads, tails)
-            loss += self.loss_fct(logits, relation_labels)
-            pred_relations = self.get_predicted_relations(logits, relations[b], entities[b])
+            loss += self.loss_fct(logits, relation_label_doc)
+            
+            pred_relations = self.get_predicted_relations(
+                logits, 
+                relation_head_doc,
+                relation_tail_doc,
+                relation_label_doc,
+                entities_start_doc,
+                entities_label_doc,
+                entities_end_doc)
+            
             all_pred_relations.append(pred_relations)
+
         return loss, all_pred_relations

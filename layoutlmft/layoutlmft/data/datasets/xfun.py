@@ -48,21 +48,13 @@ class XFUN(datasets.GeneratorBasedBuilder):
                             names=["O", "B-QUESTION", "B-ANSWER", "B-HEADER", "I-ANSWER", "I-QUESTION", "I-HEADER"]
                         )
                     ),
-                    "image": datasets.Array3D(shape=(3, 1000, 1000), dtype="uint8"),
-                    "entities": datasets.Sequence(
-                        {
-                            "start": datasets.Value("int64"),
-                            "end": datasets.Value("int64"),
-                            "label": datasets.ClassLabel(names=["HEADER", "QUESTION", "ANSWER"]),
-                        }
-                    ),
-                    "relations": datasets.Sequence(
-                        {
-                            "head": datasets.Value("int64"),
-                            "tail": datasets.Value("int64"),
-                            "label": datasets.Value("int64"),
-                        }
-                    ),
+                    "image": datasets.Array3D(shape=(3, 224, 224), dtype="uint8"),
+                    "relation_head": datasets.Sequence(datasets.Value("int64")),
+                    "relation_tail": datasets.Sequence(datasets.Value("int64")),
+                    "relation_label": datasets.Sequence(datasets.Value("int64")),
+                    "entities_start": datasets.Sequence(datasets.Value("int64")),
+                    "entities_end": datasets.Sequence(datasets.Value("int64")),
+                    "entities_label": datasets.Sequence(datasets.ClassLabel(names=["HEADER", "QUESTION", "ANSWER"])),
                 }
             ),
             supervised_keys=None,
@@ -278,8 +270,12 @@ class XFUN(datasets.GeneratorBasedBuilder):
                         {
                             "id": f"{doc['id']}_{chunk_id}",
                             "image": image,
-                            "entities": built_entities,
-                            "relations": built_relations,
+                            "relation_head": [x['head'] for x in built_relations],
+                            "relation_tail": [x['tail'] for x in built_relations],
+                            "relation_label": [x['label'] for x in built_relations],
+                            "entities_start": [x['start'] for x in built_entities],
+                            "entities_end": [x['end'] for x in built_entities],
+                            "entities_label": [x['label'] for x in built_entities],
                         }
                     )
                     yield f"{doc['id']}_{chunk_id}", item
