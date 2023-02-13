@@ -1,5 +1,7 @@
 # coding=utf-8
 import math
+from dataclasses import dataclass
+from typing import Dict, Optional, Tuple
 
 import torch
 import torch.nn.functional as F
@@ -21,9 +23,9 @@ from transformers.models.layoutlm.modeling_layoutlm import LayoutLMOutput as Lay
 from transformers.models.layoutlm.modeling_layoutlm import LayoutLMPooler as LayoutLMv2Pooler
 from transformers.models.layoutlm.modeling_layoutlm import LayoutLMSelfOutput as LayoutLMv2SelfOutput
 from transformers.utils import logging
+from transformers.file_utils import ModelOutput
 
 from ...modules.decoders.re import REDecoder
-from ...utils import ReOutput
 from .configuration_layoutlmv2 import LayoutLMv2Config
 from .detectron2_config import add_layoutlmv2_config
 
@@ -37,6 +39,20 @@ LAYOUTLMV2_PRETRAINED_MODEL_ARCHIVE_LIST = [
 
 
 LayoutLMv2LayerNorm = torch.nn.LayerNorm
+
+
+@dataclass
+class RelationExtractionOutput(ModelOutput):
+    loss: Optional[torch.FloatTensor] = None
+    hidden_states: Optional[Tuple[torch.IntTensor]] = None
+    attentions: Optional[Tuple[torch.IntTensor]] = None
+    relation_head: Optional[torch.IntTensor] = None
+    relation_tail: Optional[torch.IntTensor] = None
+    relation_label: Optional[torch.IntTensor] = None
+    entities_start: Optional[torch.IntTensor] = None
+    entities_end: Optional[torch.IntTensor] = None
+    entities_label: Optional[torch.IntTensor] = None
+    pred_relations: Optional[Dict] = None
 
 
 class LayoutLMv2Embeddings(nn.Module):
@@ -940,7 +956,7 @@ class LayoutLMv2ForRelationExtraction(LayoutLMv2PreTrainedModel):
             entities_label
         )
 
-        return ReOutput(
+        return RelationExtractionOutput(
             loss=loss,
             relation_head=relation_head,
             relation_tail=relation_tail,
