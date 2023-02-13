@@ -51,7 +51,7 @@ class BiaffineAttention(torch.nn.Module):
         self.linear.reset_parameters()
 
 
-class REDecoder(nn.Module):
+class LayoutLMv2RelationExtractionDecoder(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.entity_emb = nn.Embedding(3, config.hidden_size, scale_grad_by_freq=True)

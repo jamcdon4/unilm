@@ -25,7 +25,7 @@ from transformers.models.layoutlm.modeling_layoutlm import LayoutLMSelfOutput as
 from transformers.utils import logging
 from transformers.file_utils import ModelOutput
 
-from ...modules.decoders.re import REDecoder
+from ...modules.decoders.re import LayoutLMv2RelationExtractionDecoder
 from .configuration_layoutlmv2 import LayoutLMv2Config
 from .detectron2_config import add_layoutlmv2_config
 
@@ -913,7 +913,7 @@ class LayoutLMv2ForRelationExtraction(LayoutLMv2PreTrainedModel):
         super().__init__(config)
         self.layoutlmv2 = LayoutLMv2Model(config)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
-        self.extractor = REDecoder(config)
+        self.extractor = LayoutLMv2RelationExtractionDecoder(config)
         self.init_weights()
 
     def forward(
