@@ -971,32 +971,6 @@ class LayoutLMv2RelationExtractionDecoder(nn.Module):
         self.rel_classifier = BiaffineAttention(config.hidden_size // 2, 2)
         self.loss_fct = CrossEntropyLoss()
 
-    def get_predicted_relations(self, 
-                                logits, 
-                                relation_head_doc,
-                                relation_tail_doc,
-                                relation_label_doc,
-                                entities_start_doc,
-                                entities_label_doc,
-                                entities_end_doc
-        ):
-
-        pred_relations = []
-        for i, pred_label in enumerate(logits.argmax(-1)):
-            if pred_label != 1:
-                continue
-            rel = {}
-            rel["head_id"] = relation_head_doc[i]
-            rel["head"] = (entities_start_doc[rel["head_id"]], entities_end_doc[rel["head_id"]])
-            rel["head_type"] = entities_label_doc[rel["head_id"]]
-
-            rel["tail_id"] = relation_tail_doc[i]
-            rel["tail"] = (entities_start_doc[rel["tail_id"]], entities_end_doc[rel["tail_id"]])
-            rel["tail_type"] = entities_label_doc[rel["tail_id"]]
-            rel["type"] = 1
-            pred_relations.append(rel)
-        return pred_relations
-
     def forward(self, 
                 hidden_states, 
                 relation_head,
@@ -1009,7 +983,6 @@ class LayoutLMv2RelationExtractionDecoder(nn.Module):
         
         batch_size, max_n_words, context_dim = hidden_states.size()
         loss = 0
-        all_pred_relations = []
         
         for doc in range(batch_size):
             
@@ -1040,19 +1013,8 @@ class LayoutLMv2RelationExtractionDecoder(nn.Module):
             tails = self.ffnn_tail(tail_repr)
             logits = self.rel_classifier(heads, tails)
             loss += self.loss_fct(logits, relation_label_doc)
-            
-            pred_relations = self.get_predicted_relations(
-                logits, 
-                relation_head_doc,
-                relation_tail_doc,
-                relation_label_doc,
-                entities_start_doc,
-                entities_label_doc,
-                entities_end_doc)
-            
-            all_pred_relations.append(pred_relations)
 
-        return loss, all_pred_relations
+        return loss, logits
 
 
 class LayoutLMv2ForRelationExtraction(LayoutLMv2PreTrainedModel):
@@ -1093,7 +1055,7 @@ class LayoutLMv2ForRelationExtraction(LayoutLMv2PreTrainedModel):
         seq_length = input_ids.size(1)
         sequence_output, image_output = outputs[0][:, :seq_length], outputs[0][:, seq_length:]
         sequence_output = self.dropout(sequence_output)
-        loss, pred_relations = self.extractor(
+        loss, logits = self.extractor(
             sequence_output,
             relation_head,
             relation_tail,
@@ -1103,14 +1065,8 @@ class LayoutLMv2ForRelationExtraction(LayoutLMv2PreTrainedModel):
             entities_label
         )
 
-        return RelationExtractionOutput(
+        return RelationExtractionOutput(           
             loss=loss,
-            relation_head=relation_head,
-            relation_tail=relation_tail,
-            relation_label=relation_label,
-            entities_start=entities_start,
-            entities_end=entities_end,
-            entities_label=entities_end,
-            pred_relations=pred_relations,
-            hidden_states=outputs[0]
+            logits=logits,
+            hidden_states=outputs[0],
         )
