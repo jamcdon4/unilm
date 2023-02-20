@@ -44,15 +44,8 @@ LayoutLMv2LayerNorm = torch.nn.LayerNorm
 @dataclass
 class RelationExtractionOutput(ModelOutput):
     loss: Optional[torch.FloatTensor] = None
+    logits: Optional[Tuple[torch.IntTensor]] = None
     hidden_states: Optional[Tuple[torch.IntTensor]] = None
-    attentions: Optional[Tuple[torch.IntTensor]] = None
-    relation_head: Optional[torch.IntTensor] = None
-    relation_tail: Optional[torch.IntTensor] = None
-    relation_label: Optional[torch.IntTensor] = None
-    entities_start: Optional[torch.IntTensor] = None
-    entities_end: Optional[torch.IntTensor] = None
-    entities_label: Optional[torch.IntTensor] = None
-    pred_relations: Optional[Dict] = None
 
 
 class LayoutLMv2Embeddings(nn.Module):
