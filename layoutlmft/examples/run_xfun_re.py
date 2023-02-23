@@ -12,10 +12,8 @@ import layoutlmft.data.datasets.xfun
 import transformers
 from layoutlmft import AutoModelForRelationExtraction
 from layoutlmft.data.data_args import XFUNDataTrainingArguments
-from layoutlmft.data.data_collator import DataCollatorForKeyValueExtraction
 from layoutlmft.evaluation import re_score
 from layoutlmft.models.model_args import ModelArguments
-from layoutlmft.trainers import XfunReTrainer
 from transformers import (
     AutoConfig,
     AutoTokenizer,
@@ -23,6 +21,7 @@ from transformers import (
     PreTrainedTokenizerFast,
     TrainingArguments,
     set_seed,
+    Trainer,
 )
 from transformers.trainer_utils import get_last_checkpoint, is_main_process
 
@@ -178,27 +177,23 @@ def main():
         if data_args.max_test_samples is not None:
             test_dataset = test_dataset.select(range(data_args.max_test_samples))
 
-    # Data collator
-    data_collator = DataCollatorForKeyValueExtraction(
-        tokenizer,
-        pad_to_multiple_of=8 if training_args.fp16 else None,
-        padding=padding,
-        max_length=512,
-    )
-
     def compute_metrics(p):
-        pred_relations, gt_relations = p
+
+        predictions, labels = p
+        logger.info(f"==========TEST==============")
+        logger.ERROR(f"==========PREDICTIONS==============: {predictions}")
+        logger.info(f"==========labels==============: {labels}")
+
         score = re_score(pred_relations, gt_relations, mode="boundaries")
         return score
 
     # Initialize our Trainer
-    trainer = XfunReTrainer(
+    trainer = Trainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset if training_args.do_train else None,
         eval_dataset=eval_dataset if training_args.do_eval else None,
         tokenizer=tokenizer,
-        data_collator=data_collator,
         compute_metrics=compute_metrics,
     )
 
