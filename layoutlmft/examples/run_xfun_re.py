@@ -12,8 +12,10 @@ import layoutlmft.data.datasets.xfun
 import transformers
 from layoutlmft import AutoModelForRelationExtraction
 from layoutlmft.data.data_args import XFUNDataTrainingArguments
+from layoutlmft.data.data_collator import DataCollatorForKeyValueExtraction
 from layoutlmft.evaluation import re_score
 from layoutlmft.models.model_args import ModelArguments
+from layoutlmft.trainers import XfunReTrainer, FunsdTrainer
 from transformers import (
     AutoConfig,
     AutoTokenizer,
@@ -27,7 +29,7 @@ from transformers.trainer_utils import get_last_checkpoint, is_main_process
 
 
 logger = logging.getLogger(__name__)
-
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 def main():
     # See all possible arguments in src/transformers/training_args.py
@@ -41,6 +43,11 @@ def main():
         model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
     else:
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+
+    logger.warning(f'=================training_args.device================={training_args.device}')
+    logger.warning(f'=================training_args.n_gpu================={training_args.n_gpu}')
+    # training_args.device='CUDA'
+    # training_args.n_gpu=1
 
     # Detecting last checkpoint.
     last_checkpoint = None
@@ -177,6 +184,15 @@ def main():
         if data_args.max_test_samples is not None:
             test_dataset = test_dataset.select(range(data_args.max_test_samples))
 
+
+    # Data collator
+    data_collator = DataCollatorForKeyValueExtraction(
+        tokenizer,
+        pad_to_multiple_of=8 if training_args.fp16 else None,
+        padding=padding,
+        max_length=512,
+    )
+
     def compute_metrics(p):
 
         predictions, labels = p
@@ -188,12 +204,13 @@ def main():
         return score
 
     # Initialize our Trainer
-    trainer = Trainer(
+    trainer = FunsdTrainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset if training_args.do_train else None,
         eval_dataset=eval_dataset if training_args.do_eval else None,
         tokenizer=tokenizer,
+        data_collator=data_collator,
         compute_metrics=compute_metrics,
     )
 
