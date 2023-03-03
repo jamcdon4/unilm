@@ -200,6 +200,46 @@ def main():
         logger.ERROR(f"==========PREDICTIONS==============: {predictions}")
         logger.info(f"==========labels==============: {labels}")
 
+
+        # ===== Pred Relations =====
+        pred_relations = []
+        for i, pred_label in enumerate(logits.argmax(-1)):
+            if pred_label != 1:
+                continue
+            rel = {}
+            rel["head_id"] = relations["head"][i]
+            rel["head"] = (entities["start"][rel["head_id"]], entities["end"][rel["head_id"]])
+            rel["head_type"] = entities["label"][rel["head_id"]]
+
+            rel["tail_id"] = relations["tail"][i]
+            rel["tail"] = (entities["start"][rel["tail_id"]], entities["end"][rel["tail_id"]])
+            rel["tail_type"] = entities["label"][rel["tail_id"]]
+            rel["type"] = 1
+            pred_relations.append(rel)
+
+        # ===== Ground Truth Relations =====
+
+        re_labels = labels[1] if re_labels is None else re_labels + labels[1]
+
+        gt_relations = []
+        for b in range(len(re_labels)):
+            rel_sent = []
+            for head, tail in zip(re_labels[b]["head"], re_labels[b]["tail"]):
+                rel = {}
+                rel["head_id"] = head
+                rel["head"] = (entities[b]["start"][rel["head_id"]], entities[b]["end"][rel["head_id"]])
+                rel["head_type"] = entities[b]["label"][rel["head_id"]]
+
+                rel["tail_id"] = tail
+                rel["tail"] = (entities[b]["start"][rel["tail_id"]], entities[b]["end"][rel["tail_id"]])
+                rel["tail_type"] = entities[b]["label"][rel["tail_id"]]
+
+                rel["type"] = 1
+
+                rel_sent.append(rel)
+
+            gt_relations.append(rel_sent)
+
         score = re_score(pred_relations, gt_relations, mode="boundaries")
         return score
 
